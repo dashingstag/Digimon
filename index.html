@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digimon Card Reference</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    header h1 { margin: 0 0 0.5rem; font-size: 1.4rem; }
+    .tabs { display: flex; gap: 0.25rem; }
+    .tab {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.4);
+      color: #fff;
+      padding: 0.4rem 0.9rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .tab.active { background: #fff; color: var(--primary); border-color: #fff; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    input, select, button {
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    input[type="search"] { flex: 1 1 240px; min-width: 200px; }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover { background: var(--primary-dark); }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    button.secondary { background: #475569; }
+    button.secondary:hover { background: #334155; }
+    button.danger { background: var(--danger); }
+    .count { color: var(--muted); margin-bottom: 0.75rem; font-size: 0.95rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
+    .card img { width: 100%; height: auto; display: block; }
+    .placeholder {
+      min-height: 180px;
+      background: #e2e8f0;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+    .body { padding: 0.75rem; }
+    .title { font-weight: 600; margin: 0 0 0.25rem; font-size: 1rem; }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .bookmark-btn {
+      margin-top: 0.5rem;
+      width: 100%;
+      padding: 0.4rem;
+      font-size: 0.85rem;
+    }
+    .effect {
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      color: var(--text);
+      margin: 0.5rem 0;
+      max-height: 120px;
+      overflow: auto;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal.open { display: flex; }
+    .modal-content {
+      background: var(--card-bg);
+      border-radius: 8px;
+      max-width: 960px;
+      width: 100%;
+      max-height: 92vh;
+      overflow: auto;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 2rem;
+      height: 2rem;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .detail { display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; padding: 1.5rem; }
+    .detail img { width: 100%; max-width: 320px; border-radius: 6px; }
+    .detail h2 { margin-top: 0; }
+    .detail p { margin: 0.35rem 0; }
+    .hidden { display: none !important; }
+    .loading, .error { text-align: center; padding: 2rem; font-size: 1.1rem; }
+    .error { color: var(--danger); }
+    @media (max-width: 700px) {
+      .detail { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; align-items: stretch; }
+      input[type="search"] { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Digimon Card Reference</h1>
+    <nav class="tabs">
+      <button class="tab active" data-view="search">Search</button>
+      <button class="tab" data-view="bookmarks">Bookmarks</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div id="loading" class="loading">Loading card data...</div>
+    <div id="error" class="error hidden"></div>
+
+    <div id="app" class="hidden">
+      <section id="searchView">
+        <div class="controls">
+          <input id="searchInput" type="search" placeholder="Search any words (name, number, effect, trait...)">
+          <select id="colorFilter"><option value="">All Colors</option></select>
+          <select id="typeFilter"><option value="">All Types</option></select>
+          <select id="levelFilter"><option value="">All Levels</option></select>
+          <select id="rarityFilter"><option value="">All Rarities</option></select>
+          <button id="searchBtn">Search</button>
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+        <div id="resultCount" class="count"></div>
+        <div id="results" class="grid"></div>
+      </section>
+
+      <section id="bookmarksView" class="hidden">
+        <div class="controls" style="justify-content: space-between;">
+          <h2 style="margin:0">Bookmarked Cards</h2>
+          <button id="clearBookmarksBtn" class="danger">Clear all bookmarks</button>
+        </div>
+        <div id="bookmarksGrid" class="grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <button id="modalClose" class="modal-close" aria-label="Close">&times;</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const JSON_URL = 'digimon_cards_dict.json';
+    const IMAGE_DIR = 'card_images/';
+
+    let allCards = [];
+    const cardsById = {};
+    const bookmarks = new Set();
+
+    const $ = id => document.getElementById(id);
+
+    function loadBookmarks() {
+      try {
+        const raw = localStorage.getItem('digimonBookmarks');
+        if (raw) JSON.parse(raw).forEach(id => bookmarks.add(id));
+      } catch {}
+    }
+
+    function saveBookmarks() {
+      try {
+        localStorage.setItem('digimonBookmarks', JSON.stringify([...bookmarks]));
+      } catch {}
+    }
+
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function getImageSrc(cardNumber) {
+      return IMAGE_DIR + cardNumber + '.jpg';
+    }
+
+    function createPlaceholder() {
+      const p = document.createElement('div');
+      p.className = 'placeholder';
+      p.textContent = 'No image';
+      return p;
+    }
+
+    function fillSelect(select, values) {
+      values.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        select.appendChild(opt);
+      });
+    }
+
+    function buildData(raw) {
+      const colors = new Set();
+      const types = new Set();
+      const levels = new Set();
+      const rarities = new Set();
+
+      for (const [cardNumber, card] of Object.entries(raw)) {
+        card.cardnumber = cardNumber;
+        const parts = [];
+        for (const value of Object.values(card)) {
+          if (value == null) continue;
+          if (Array.isArray(value)) parts.push(...value.filter(x => x != null).map(String));
+          else parts.push(String(value));
+        }
+        card._search = parts.join(' ').toLowerCase();
+        allCards.push(card);
+        cardsById[cardNumber] = card;
+        if (card.color) colors.add(card.color);
+        if (card.type) types.add(card.type);
+        if (card.level != null) levels.add(String(card.level));
+        if (card.rarity) rarities.add(card.rarity);
+      }
+
+      allCards.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      fillSelect($('colorFilter'), [...colors].sort());
+      fillSelect($('typeFilter'), [...types].sort());
+      fillSelect($('levelFilter'), [...levels].sort((a, b) => parseInt(a) - parseInt(b)));
+      fillSelect($('rarityFilter'), [...rarities].sort());
+    }
+
+    function cardMatches(card) {
+      const color = $('colorFilter').value;
+      const type = $('typeFilter').value;
+      const level = $('levelFilter').value;
+      const rarity = $('rarityFilter').value;
+      const query = $('searchInput').value.trim().toLowerCase();
+
+      if (color && card.color !== color) return false;
+      if (type && card.type !== type) return false;
+      if (level && String(card.level) !== level) return false;
+      if (rarity && card.rarity !== rarity) return false;
+
+      const terms = query.split(/\s+/).filter(t => t);
+      if (!terms.length) return true;
+      return terms.every(t => card._search.includes(t));
+    }
+
+    function renderResults() {
+      const matches = allCards.filter(cardMatches);
+      const results = $('results');
+      results.innerHTML = '';
+      $('resultCount').textContent = `${matches.length} card(s) found` + (matches.length > 100 ? ' (showing first 100)' : '');
+
+      for (const card of matches.slice(0, 100)) {
+        results.appendChild(createResultCard(card));
+      }
+    }
+
+    function createResultCard(card) {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.addEventListener('click', e => { if (!e.target.closest('.bookmark-btn')) openModal(card); });
+
+      const img = document.createElement('img');
+      img.src = getImageSrc(card.cardnumber);
+      img.alt = card.name || card.cardnumber;
+      img.onerror = () => { img.style.display = 'none'; div.insertBefore(createPlaceholder(), div.firstChild); };
+
+      const body = document.createElement('div');
+      body.className = 'body';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = card.name || card.cardnumber;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `${card.cardnumber} | ${card.color || ''} ${card.type || ''} | Lv ${card.level != null ? card.level : '—'} | Cost ${card.play_cost != null ? card.play_cost : '—'}`;
+      const btn = document.createElement('button');
+      btn.className = 'bookmark-btn';
+      btn.textContent = bookmarks.has(card.cardnumber) ? 'Bookmarked' : 'Bookmark';
+      btn.disabled = bookmarks.has(card.cardnumber);
+      btn.addEventListener('click', () => {
+        bookmarks.add(card.cardnumber);
+        saveBookmarks();
+        btn.textContent = 'Bookmarked';
+        btn.disabled = true;
+        renderBookmarks();
+      });
+
+      body.appendChild(title);
+      body.appendChild(meta);
+      body.appendChild(btn);
+      div.appendChild(img);
+      div.appendChild(body);
+      return div;
+    }
+
+    function openModal(card) {
+      const body = $('modalBody');
+      body.innerHTML = '';
+
+      const detail = document.createElement('div');
+      detail.className = 'detail';
+
+      const left = document.createElement('div');
+      const img = document.createElement('img');
+      img.src = getImageSrc(card.cardnumber);
+      img.alt = card.name || card.cardnumber;
+      img.onerror = () => { img.style.display = 'none'; left.appendChild(createPlaceholder()); };
+      left.appendChild(img);
+
+      const right = document.createElement('div');
+      right.innerHTML = `
+        <h2>${escapeHtml(card.name || '')}</h2>
+        <p><strong>Number:</strong> ${escapeHtml(card.cardnumber)}</p>
+        <p><strong>Type:</strong> ${escapeHtml(card.type)} | <strong>Color:</strong> ${escapeHtml(card.color)}</p>
+        <p><strong>Level:</strong> ${card.level != null ? card.level : '—'} | <strong>Play Cost:</strong> ${card.play_cost != null ? card.play_cost : '—'} | <strong>DP:</strong> ${card.dp != null ? card.dp : '—'}</p>
+        <p><strong>Rarity:</strong> ${escapeHtml(card.rarity)} | <strong>Attribute:</strong> ${escapeHtml(card.attribute)}</p>
+      `;
+      const btn = document.createElement('button');
+      btn.textContent = bookmarks.has(card.cardnumber) ? 'Bookmarked' : 'Bookmark';
+      btn.disabled = bookmarks.has(card.cardnumber);
+      btn.addEventListener('click', () => {
+        bookmarks.add(card.cardnumber);
+        saveBookmarks();
+        btn.textContent = 'Bookmarked';
+        btn.disabled = true;
+        renderBookmarks();
+      });
+      right.appendChild(btn);
+
+      const sections = [
+        ['Main Effect', card.main_effect],
+        ['Source Effect', card.source_effect],
+        ['Alternative Effect', card.alt_effect],
+        ['Security Effect', card.security_effect],
+        ['Card Text', card.card_text],
+      ];
+      for (const [label, text] of sections) {
+        if (!text) continue;
+        const h3 = document.createElement('h3');
+        h3.textContent = label;
+        right.appendChild(h3);
+        const p = document.createElement('p');
+        p.className = 'effect';
+        p.textContent = text;
+        right.appendChild(p);
+      }
+
+      detail.appendChild(left);
+      detail.appendChild(right);
+      body.appendChild(detail);
+      $('modal').classList.add('open');
+    }
+
+    function closeModal() {
+      $('modal').classList.remove('open');
+    }
+
+    function renderBookmarks() {
+      const grid = $('bookmarksGrid');
+      grid.innerHTML = '';
+      const ids = [...bookmarks];
+      if (!ids.length) {
+        grid.innerHTML = '<p>No bookmarked cards yet. Use the Search tab to bookmark cards.</p>';
+        return;
+      }
+
+      for (const id of ids) {
+        const card = cardsById[id];
+        if (!card) continue;
+
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.addEventListener('click', e => { if (!e.target.closest('.remove-btn')) openModal(card); });
+
+        const img = document.createElement('img');
+        img.src = getImageSrc(card.cardnumber);
+        img.alt = card.name || card.cardnumber;
+        img.onerror = () => { img.style.display = 'none'; div.insertBefore(createPlaceholder(), div.firstChild); };
+
+        const body = document.createElement('div');
+        body.className = 'body';
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = card.name || card.cardnumber;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `${card.cardnumber} | ${card.color || ''} ${card.type || ''} | Lv ${card.level != null ? card.level : '—'} | Cost ${card.play_cost != null ? card.play_cost : '—'}`;
+
+        const effects = [card.main_effect, card.source_effect, card.alt_effect].filter(Boolean);
+        if (effects.length) {
+          const p = document.createElement('p');
+          p.className = 'effect';
+          p.textContent = effects[0];
+          body.appendChild(p);
+        }
+
+        const remove = document.createElement('button');
+        remove.className = 'remove-btn';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => {
+          bookmarks.delete(card.cardnumber);
+          saveBookmarks();
+          renderBookmarks();
+        });
+
+        body.appendChild(title);
+        body.appendChild(meta);
+        body.appendChild(remove);
+        div.appendChild(img);
+        div.appendChild(body);
+        grid.appendChild(div);
+      }
+    }
+
+    function switchTab(view) {
+      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+      $('searchView').classList.toggle('hidden', view !== 'search');
+      $('bookmarksView').classList.toggle('hidden', view !== 'bookmarks');
+      if (view === 'bookmarks') renderBookmarks();
+    }
+
+    function init() {
+      loadBookmarks();
+      fetch(JSON_URL)
+        .then(r => { if (!r.ok) throw new Error(`Failed to load ${JSON_URL} (${r.status})`); return r.json(); })
+        .then(data => {
+          buildData(data);
+          $('loading').classList.add('hidden');
+          $('app').classList.remove('hidden');
+          renderResults();
+        })
+        .catch(err => {
+          $('loading').classList.add('hidden');
+          $('error').textContent = err.message;
+          $('error').classList.remove('hidden');
+        });
+
+      $('searchInput').addEventListener('input', debounce(renderResults, 150));
+      $('colorFilter').addEventListener('change', renderResults);
+      $('typeFilter').addEventListener('change', renderResults);
+      $('levelFilter').addEventListener('change', renderResults);
+      $('rarityFilter').addEventListener('change', renderResults);
+      $('searchBtn').addEventListener('click', renderResults);
+      $('clearBtn').addEventListener('click', () => {
+        $('searchInput').value = '';
+        $('colorFilter').selectedIndex = 0;
+        $('typeFilter').selectedIndex = 0;
+        $('levelFilter').selectedIndex = 0;
+        $('rarityFilter').selectedIndex = 0;
+        renderResults();
+      });
+      $('clearBookmarksBtn').addEventListener('click', () => {
+        bookmarks.clear();
+        saveBookmarks();
+        renderBookmarks();
+      });
+      $('modalClose').addEventListener('click', closeModal);
+      $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+      document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.view)));
+    }
+
+    init();
+  </script>
+</body>
+</html>
