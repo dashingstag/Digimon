@@ -510,6 +510,18 @@
     const bookmarks = new Set();
     let activeKeyword = null;
 
+    // Set/printing metadata excluded from free-text search so e.g. a trait
+    // like "Royal Knight" doesn't match cards merely printed in a set such
+    // as "Booster Versus Royal Knights".
+    const SEARCH_EXCLUDED_FIELDS = new Set([
+      'set_name', 'tcgplayer_name', 'tcgplayer_id', 'id',
+      'pretty_url', 'series', 'date_added', 'artist',
+      // Alternate printings + serialized-dictionary artifacts that embed
+      // set names (a .NET dict leaked its Keys/Values/etc. into the data).
+      'variants', 'Values', 'Keys', 'Count',
+      'IsReadOnly', 'IsFixedSize', 'IsSynchronized', 'SyncRoot'
+    ]);
+
     const $ = id => document.getElementById(id);
 
     function loadBookmarks() {
@@ -564,8 +576,8 @@
       for (const [cardNumber, card] of Object.entries(raw)) {
         card.cardnumber = cardNumber;
         const parts = [];
-        for (const value of Object.values(card)) {
-          if (value == null) continue;
+        for (const [key, value] of Object.entries(card)) {
+          if (value == null || SEARCH_EXCLUDED_FIELDS.has(key)) continue;
           if (Array.isArray(value)) parts.push(...value.filter(x => x != null).map(String));
           else parts.push(String(value));
         }
