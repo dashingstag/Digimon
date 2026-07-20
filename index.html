@@ -508,6 +508,7 @@
     let allCards = [];
     const cardsById = {};
     const bookmarks = new Set();
+    let activeKeyword = null;
 
     const $ = id => document.getElementById(id);
 
@@ -595,6 +596,8 @@
       if (type && card.type !== type) return false;
       if (level && String(card.level) !== level) return false;
       if (rarity && card.rarity !== rarity) return false;
+
+      if (activeKeyword) return card._search.includes(activeKeyword);
 
       const terms = query.split(/\s+/).filter(t => t);
       if (!terms.length) return true;
@@ -770,12 +773,13 @@
       }
     }
 
-    function keywordSearchTerm(kw) {
-      return kw
+    function keywordCardToken(kw) {
+      const label = kw
         .replace(/\(.*?\)/g, '')
-        .replace(/\s[+\-]?[Xx]\b/g, '')
+        .replace(/([+\-]|\s)[Xx]\b/g, '$1')
         .replace(/\s{2,}/g, ' ')
         .trim();
+      return ('\uFF1C' + label).toLowerCase();
     }
 
     function renderKeywords() {
@@ -813,7 +817,8 @@
         find.className = 'kw-find secondary';
         find.textContent = 'Find cards with this keyword';
         find.addEventListener('click', () => {
-          $('searchInput').value = keywordSearchTerm(k.keyword);
+          activeKeyword = keywordCardToken(k.keyword);
+          $('searchInput').value = k.keyword;
           $('colorFilter').selectedIndex = 0;
           $('typeFilter').selectedIndex = 0;
           $('levelFilter').selectedIndex = 0;
@@ -963,7 +968,7 @@
           $('error').classList.remove('hidden');
         });
 
-      $('searchInput').addEventListener('input', debounce(renderResults, 150));
+      $('searchInput').addEventListener('input', debounce(() => { activeKeyword = null; renderResults(); }, 150));
       $('colorFilter').addEventListener('change', renderResults);
       $('typeFilter').addEventListener('change', renderResults);
       $('levelFilter').addEventListener('change', renderResults);
@@ -975,6 +980,7 @@
       $('deckClearBtn').addEventListener('click', () => { $('deckInput').value = ''; renderDeck(); });
       $('copyDeckBtn').addEventListener('click', copyDeckList);
       $('clearBtn').addEventListener('click', () => {
+        activeKeyword = null;
         $('searchInput').value = '';
         $('colorFilter').selectedIndex = 0;
         $('typeFilter').selectedIndex = 0;
