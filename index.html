@@ -855,8 +855,29 @@
       window.getSelection().removeAllRanges();
     }
 
-    function parseDeckNumbers(text) {
-      return (text.toUpperCase().match(/[A-Z]{1,4}\d{0,2}-\d+[A-Z0-9]*/g) || []);
+    function parseDeck(text) {
+      const numRe = /[A-Z]{1,4}\d{0,2}-\d+[A-Z0-9]*/g;
+      const order = [];
+      const qty = {};
+      for (let entry of text.split(/[,\n;]+/)) {
+        entry = entry.trim();
+        if (!entry) continue;
+        const nums = entry.toUpperCase().match(numRe);
+        if (!nums) continue;
+        let q = 1;
+        if (nums.length === 1) {
+          const lead = entry.match(/^\s*(\d+)\s*[xX]?\s+/);
+          const trail = entry.match(/[xX]\s*(\d+)\s*$/);
+          if (lead) q = parseInt(lead[1], 10);
+          else if (trail) q = parseInt(trail[1], 10);
+          if (!q || q < 1) q = 1;
+        }
+        for (const n of nums) {
+          if (!(n in qty)) { qty[n] = 0; order.push(n); }
+          qty[n] += q;
+        }
+      }
+      return { order, qty };
     }
 
     function buildDeckCard(card, qty) {
@@ -892,28 +913,22 @@
     }
 
     function renderDeck() {
-      const nums = parseDeckNumbers($('deckInput').value);
+      const { order, qty } = parseDeck($('deckInput').value);
       const grid = $('deckResults');
       grid.innerHTML = '';
 
-      const order = [];
-      const qty = {};
-      for (const n of nums) {
-        if (!(n in qty)) { qty[n] = 0; order.push(n); }
-        qty[n]++;
-      }
-
       const found = [];
       const missing = [];
+      let total = 0;
       for (const n of order) {
-        if (cardsById[n]) found.push(n);
+        if (cardsById[n]) { found.push(n); total += qty[n]; }
         else missing.push(n);
       }
 
       if (!order.length) {
         $('deckCount').textContent = '';
       } else {
-        let msg = `${found.length} unique card(s), ${nums.length} total`;
+        let msg = `${found.length} unique card(s), ${total} total`;
         if (missing.length) msg += ` \u2014 not found: ${missing.join(', ')}`;
         $('deckCount').textContent = msg;
       }
