@@ -170,6 +170,36 @@
     .kw-desc { margin: 0; }
     .kw-note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
     .kw-find { margin-top: 0.6rem; font-size: 0.85rem; padding: 0.35rem 0.7rem; }
+    textarea {
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      width: 100%;
+      resize: vertical;
+    }
+    .deck-export {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .deck-export label { display: block; font-weight: 600; margin-bottom: 0.4rem; }
+    .deck-export .row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+    .deck-controls { display: block; }
+    .deck-controls .row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .copied { color: #16a34a; font-size: 0.9rem; }
+    .qty-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 4px;
+      padding: 0 0.45rem;
+      font-size: 0.8rem;
+      margin-left: 0.3rem;
+    }
     @media (max-width: 700px) {
       .detail { grid-template-columns: 1fr; }
       .controls { flex-direction: column; align-items: stretch; }
@@ -184,6 +214,7 @@
       <button class="tab active" data-view="search">Search</button>
       <button class="tab" data-view="bookmarks">Bookmarks</button>
       <button class="tab" data-view="keywords">Keywords</button>
+      <button class="tab" data-view="deck">Deck</button>
     </nav>
   </header>
 
@@ -211,6 +242,14 @@
           <h2 style="margin:0">Bookmarked Cards</h2>
           <button id="clearBookmarksBtn" class="danger">Clear all bookmarks</button>
         </div>
+        <div id="bookmarkDeckWrap" class="deck-export">
+          <label for="bookmarkDeckText">Deck list (bookmarked card numbers)</label>
+          <textarea id="bookmarkDeckText" rows="4" readonly placeholder="Bookmark cards to build a deck list..."></textarea>
+          <div class="row">
+            <button id="copyDeckBtn" class="secondary">Copy deck list</button>
+            <span id="copyDeckMsg" class="copied hidden">Copied!</span>
+          </div>
+        </div>
         <div id="bookmarksGrid" class="grid"></div>
       </section>
 
@@ -220,6 +259,19 @@
         </div>
         <div id="keywordCount" class="count"></div>
         <div id="keywordList" class="kw-list"></div>
+      </section>
+
+      <section id="deckView" class="hidden">
+        <div class="controls deck-controls">
+          <label for="deckInput" style="font-weight:600;">Paste card numbers to build a deck</label>
+          <textarea id="deckInput" rows="5" placeholder="e.g. BT1-010, ST1-02, EX2-044 &#10;One per line or separated by commas/spaces. Quantities like '4 BT1-010' are supported."></textarea>
+          <div class="row">
+            <button id="deckShowBtn">Show cards</button>
+            <button id="deckClearBtn" class="secondary">Clear</button>
+          </div>
+        </div>
+        <div id="deckCount" class="count"></div>
+        <div id="deckResults" class="grid"></div>
       </section>
     </div>
   </main>
@@ -663,6 +715,7 @@
     function renderBookmarks() {
       const grid = $('bookmarksGrid');
       grid.innerHTML = '';
+      updateBookmarkDeckText();
       const ids = [...bookmarks];
       if (!ids.length) {
         grid.innerHTML = '<p>No bookmarked cards yet. Use the Search tab to bookmark cards.</p>';
@@ -774,13 +827,124 @@
       }
     }
 
+    function updateBookmarkDeckText() {
+      $('bookmarkDeckText').value = [...bookmarks].join('\n');
+    }
+
+    function copyDeckList() {
+      const text = $('bookmarkDeckText').value;
+      const done = () => {
+        const msg = $('copyDeckMsg');
+        msg.classList.remove('hidden');
+        setTimeout(() => msg.classList.add('hidden'), 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopy(); done(); });
+      } else {
+        fallbackCopy();
+        done();
+      }
+    }
+
+    function fallbackCopy() {
+      const ta = $('bookmarkDeckText');
+      ta.removeAttribute('readonly');
+      ta.select();
+      try { document.execCommand('copy'); } catch {}
+      ta.setAttribute('readonly', '');
+      window.getSelection().removeAllRanges();
+    }
+
+    function parseDeck(text) {
+      const numRe = /[A-Z]{1,4}\d{0,2}-\d+[A-Z0-9]*/g;
+      const order = [];
+      const qty = {};
+      for (let entry of text.split(/[,\n;]+/)) {
+        entry = entry.trim();
+        if (!entry) continue;
+        const nums = entry.toUpperCase().match(numRe);
+        if (!nums) continue;
+        let q = 1;
+        if (nums.length === 1) {
+          const lead = entry.match(/^\s*(\d+)\s*[xX]?\s+/);
+          const trail = entry.match(/[xX]\s*(\d+)\s*$/);
+          if (lead) q = parseInt(lead[1], 10);
+          else if (trail) q = parseInt(trail[1], 10);
+          if (!q || q < 1) q = 1;
+        }
+        for (const n of nums) {
+          if (!(n in qty)) { qty[n] = 0; order.push(n); }
+          qty[n] += q;
+        }
+      }
+      return { order, qty };
+    }
+
+    function buildDeckCard(card, qty) {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.addEventListener('click', () => openModal(card));
+
+      const img = document.createElement('img');
+      img.src = getImageSrc(card.cardnumber);
+      img.alt = card.name || card.cardnumber;
+      img.onerror = () => { img.style.display = 'none'; div.insertBefore(createPlaceholder(), div.firstChild); };
+
+      const body = document.createElement('div');
+      body.className = 'body';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = card.name || card.cardnumber;
+      if (qty > 1) {
+        const badge = document.createElement('span');
+        badge.className = 'qty-badge';
+        badge.textContent = 'x' + qty;
+        title.appendChild(badge);
+      }
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `${card.cardnumber} | ${card.color || ''} ${card.type || ''} | Lv ${card.level != null ? card.level : '\u2014'} | Cost ${card.play_cost != null ? card.play_cost : '\u2014'}`;
+
+      body.appendChild(title);
+      body.appendChild(meta);
+      div.appendChild(img);
+      div.appendChild(body);
+      return div;
+    }
+
+    function renderDeck() {
+      const { order, qty } = parseDeck($('deckInput').value);
+      const grid = $('deckResults');
+      grid.innerHTML = '';
+
+      const found = [];
+      const missing = [];
+      let total = 0;
+      for (const n of order) {
+        if (cardsById[n]) { found.push(n); total += qty[n]; }
+        else missing.push(n);
+      }
+
+      if (!order.length) {
+        $('deckCount').textContent = '';
+      } else {
+        let msg = `${found.length} unique card(s), ${total} total`;
+        if (missing.length) msg += ` \u2014 not found: ${missing.join(', ')}`;
+        $('deckCount').textContent = msg;
+      }
+
+      for (const n of found) grid.appendChild(buildDeckCard(cardsById[n], qty[n]));
+    }
+
     function switchTab(view) {
       document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === view));
       $('searchView').classList.toggle('hidden', view !== 'search');
       $('bookmarksView').classList.toggle('hidden', view !== 'bookmarks');
       $('keywordsView').classList.toggle('hidden', view !== 'keywords');
+      $('deckView').classList.toggle('hidden', view !== 'deck');
       if (view === 'bookmarks') renderBookmarks();
       if (view === 'keywords') renderKeywords();
+      if (view === 'deck') renderDeck();
     }
 
     function init() {
@@ -806,6 +970,10 @@
       $('rarityFilter').addEventListener('change', renderResults);
       $('searchBtn').addEventListener('click', renderResults);
       $('keywordSearch').addEventListener('input', debounce(renderKeywords, 150));
+      $('deckInput').addEventListener('input', debounce(renderDeck, 200));
+      $('deckShowBtn').addEventListener('click', renderDeck);
+      $('deckClearBtn').addEventListener('click', () => { $('deckInput').value = ''; renderDeck(); });
+      $('copyDeckBtn').addEventListener('click', copyDeckList);
       $('clearBtn').addEventListener('click', () => {
         $('searchInput').value = '';
         $('colorFilter').selectedIndex = 0;
