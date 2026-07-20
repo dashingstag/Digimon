@@ -570,6 +570,9 @@
           else parts.push(String(value));
         }
         card._search = parts.join(' ').toLowerCase();
+        card._kweffect = stripReminders(
+          [card.main_effect, card.source_effect, card.alt_effect].filter(Boolean).join(' ')
+        ).toLowerCase();
         allCards.push(card);
         cardsById[cardNumber] = card;
         if (card.color) colors.add(card.color);
@@ -597,7 +600,7 @@
       if (level && String(card.level) !== level) return false;
       if (rarity && card.rarity !== rarity) return false;
 
-      if (activeKeyword) return card._search.includes(activeKeyword);
+      if (activeKeyword) return card._kweffect.includes(activeKeyword);
 
       const terms = query.split(/\s+/).filter(t => t);
       if (!terms.length) return true;
@@ -771,6 +774,12 @@
         div.appendChild(body);
         grid.appendChild(div);
       }
+    }
+
+    function stripReminders(s) {
+      let prev;
+      do { prev = s; s = s.replace(/\([^()]*\)/g, ' '); } while (s !== prev);
+      return s;
     }
 
     function keywordCardToken(kw) {
