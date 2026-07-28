@@ -12,6 +12,7 @@ decklist, looks up real card details, follows the official rules, and produces a
 | `deck_lookup.py` | Resolves a decklist into full card details (cost, DP, level, traits, effects) from `../digimon_cards_dict.json`. |
 | `playbook_playtest.md` | The playbook (agent procedure) that drives the play-by-play simulation. |
 | `sample_decklist.txt` | Example decklist for trying the tool. |
+| `sample_playbyplay.md` | Example of the play-by-play the agent produces for a decklist. |
 
 ## Quick start
 
