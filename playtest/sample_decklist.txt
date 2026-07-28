@@ -1,0 +1,23 @@
+# Sample decklist — red Greymon aggro (illustrative, ~50 + eggs)
+# Format: "<qty> <card number>" or "<card number> x<qty>"; blank/# lines ignored.
+
+# Digi-Egg deck (0-5)
+4 BT14-001
+
+# Main deck
+4 BT1-010
+4 BT1-013
+4 BT1-015
+3 BT1-016
+2 BT1-017
+4 BT1-021
+2 BT1-022
+2 BT1-023
+4 AD1-001
+3 BT1-020
+2 AD1-004
+2 AD1-009
+4 BT1-085
+4 BT1-084
+4 BT1-019
+2 BT1-018
