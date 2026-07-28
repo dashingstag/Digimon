@@ -809,7 +809,7 @@
       list.innerHTML = '';
       const matches = KEYWORDS.filter(k =>
         !q || (k.keyword + ' ' + k.description + ' ' + (k.note || '')).toLowerCase().includes(q)
-      );
+      ).sort((a, b) => a.keyword.localeCompare(b.keyword));
       $('keywordCount').textContent = `${matches.length} keyword(s)`;
 
       for (const k of matches) {
