@@ -230,6 +230,17 @@
           <select id="typeFilter"><option value="">All Types</option></select>
           <select id="levelFilter"><option value="">All Levels</option></select>
           <select id="rarityFilter"><option value="">All Rarities</option></select>
+          <select id="sortBy" title="Sort results">
+            <option value="name-asc">Name (A–Z)</option>
+            <option value="name-desc">Name (Z–A)</option>
+            <option value="number-asc">Card number (A–Z)</option>
+            <option value="level-asc">Level (low→high)</option>
+            <option value="level-desc">Level (high→low)</option>
+            <option value="dp-desc">DP (high→low)</option>
+            <option value="dp-asc">DP (low→high)</option>
+            <option value="cost-asc">Cost (low→high)</option>
+            <option value="cost-desc">Cost (high→low)</option>
+          </select>
           <button id="searchBtn">Search</button>
           <button id="clearBtn" class="secondary">Clear</button>
         </div>
@@ -619,8 +630,33 @@
       return terms.every(t => card._search.includes(t));
     }
 
+    function sortCards(cards) {
+      const [key, dir] = ($('sortBy').value || 'name-asc').split('-');
+      const sign = dir === 'desc' ? -1 : 1;
+      const num = v => {
+        const n = parseInt(v, 10);
+        return Number.isNaN(n) ? null : n;
+      };
+      const numericKey = { level: 'level', dp: 'dp', cost: 'play_cost' }[key];
+      const arr = cards.slice();
+      arr.sort((a, b) => {
+        if (numericKey) {
+          const av = num(a[numericKey]), bv = num(b[numericKey]);
+          // Cards missing the value always sort to the bottom.
+          if (av == null && bv == null) return (a.name || '').localeCompare(b.name || '');
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          if (av !== bv) return (av - bv) * sign;
+          return (a.name || '').localeCompare(b.name || '');
+        }
+        if (key === 'number') return (a.cardnumber || '').localeCompare(b.cardnumber || '') * sign;
+        return (a.name || '').localeCompare(b.name || '') * sign;
+      });
+      return arr;
+    }
+
     function renderResults() {
-      const matches = allCards.filter(cardMatches);
+      const matches = sortCards(allCards.filter(cardMatches));
       const results = $('results');
       results.innerHTML = '';
       $('resultCount').textContent = `${matches.length} card(s) found` + (matches.length > 100 ? ' (showing first 100)' : '');
@@ -994,6 +1030,7 @@
       $('typeFilter').addEventListener('change', renderResults);
       $('levelFilter').addEventListener('change', renderResults);
       $('rarityFilter').addEventListener('change', renderResults);
+      $('sortBy').addEventListener('change', renderResults);
       $('searchBtn').addEventListener('click', renderResults);
       $('keywordSearch').addEventListener('input', debounce(renderKeywords, 150));
       $('deckInput').addEventListener('input', debounce(renderDeck, 200));
@@ -1007,6 +1044,7 @@
         $('typeFilter').selectedIndex = 0;
         $('levelFilter').selectedIndex = 0;
         $('rarityFilter').selectedIndex = 0;
+        $('sortBy').selectedIndex = 0;
         renderResults();
       });
       $('clearBookmarksBtn').addEventListener('click', () => {
