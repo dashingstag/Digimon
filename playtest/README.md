@@ -9,7 +9,8 @@ decklist, looks up real card details, follows the official rules, and produces a
 | File | Purpose |
 |---|---|
 | `digimon_rules.md` | Rules reference distilled from the official Comprehensive Rules Manual (Ver. 4.1). The agent's rules authority. |
-| `deck_lookup.py` | Resolves a decklist into full card details (cost, DP, level, traits, effects) from `../digimon_cards_dict.json`. |
+| `deck_lookup.py` | Resolves a decklist into full card details (cost, DP, level, traits, effects) from `../digimon_cards_dict.json`. Reports any `MISSING` card numbers. |
+| `../app/update_cards.py` | Fetches full records for specific card numbers from the digimoncard.io API (the Streamlit Data Fetcher's endpoint) and writes only those keys into `../digimon_cards_dict.json`. Used to fill in cards `deck_lookup.py` reports missing/sparse. |
 | `playbook_playtest.md` | The playbook (agent procedure) that drives the play-by-play simulation. |
 | `sample_decklist.txt` | Example decklist for trying the tool. |
 | `sample_playbyplay.md` | Example of the play-by-play the agent produces for a decklist. |
@@ -25,6 +26,9 @@ python3 playtest/deck_lookup.py playtest/sample_decklist.txt --json
 
 # Read a decklist from stdin
 cat mydeck.txt | python3 playtest/deck_lookup.py -
+
+# If deck_lookup reports MISSING (or stat-sparse) cards, fetch just those:
+python3 app/update_cards.py BT25-084 LM-032   # then re-run deck_lookup.py
 ```
 
 ### Decklist format
@@ -41,8 +45,10 @@ BT14-001        # quantity defaults to 1
 ## How the agent uses these
 
 1. Runs `deck_lookup.py` to get accurate stats/effects for every card in the deck(s).
-2. Reads `digimon_rules.md` for turn structure, memory, digivolution, and combat rules.
-3. Follows `playbook_playtest.md` to simulate the game and emit a play-by-play log.
+2. If any card is reported `MISSING` or comes back stat-sparse, runs `app/update_cards.py <those numbers>`
+   to fetch them from the API, then re-runs `deck_lookup.py` to confirm the deck fully resolves.
+3. Reads `digimon_rules.md` for turn structure, memory, digivolution, and combat rules.
+4. Follows `playbook_playtest.md` to simulate the game and emit a play-by-play log.
 
 The playbook is also registered as a Devin playbook so it can be launched directly on any
 decklist.

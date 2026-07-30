@@ -27,29 +27,40 @@ repo, plays out the game making reasonable decisions for each side, and reports 
    `playtest/digimon_rules.md`, and `digimon_cards_dict.json` are present.
 2. Save each provided decklist to a file (e.g. `deckA.txt`, `deckB.txt`).
 3. Run `python3 playtest/deck_lookup.py deckA.txt` (and for deckB) to resolve every card's
-   type, color, level, play cost, digivolve cost, DP, traits, and effects. Note any card
-   numbers reported under MISSING and tell the user; do not invent stats for them.
-4. Read `playtest/digimon_rules.md` in full and treat it as the rules authority (card text
+   type, color, level, play cost, digivolve cost, DP, traits, and effects.
+4. **Fill in any missing/sparse cards before playing.** Collect the card numbers reported under
+   `MISSING`, plus any resolved cards that come back stat-sparse (e.g. `type: "Unknown"` with
+   null level/cost/DP — these are CSV stubs). Fetch full records for *only those numbers* from
+   the same public API the Streamlit Data Fetcher uses, via the helper:
+   ```
+   python3 app/update_cards.py BT25-084 LM-032 EX1-066   # only the numbers that were missing/sparse
+   ```
+   It writes just those keys into `digimon_cards_dict.json` and leaves every other entry
+   untouched. Then re-run `deck_lookup.py` and confirm `MISSING` is empty. If a number is still
+   missing after the API call (genuinely not in the database), tell the user and do not invent
+   stats for it. Note: this edits the local dictionary — commit it on a branch/PR only if the
+   user wants the data change persisted; otherwise it's just a local fetch to enable the playtest.
+5. Read `playtest/digimon_rules.md` in full and treat it as the rules authority (card text
    overrides general rules). Pay attention to: turn phases, the shared memory gauge and how
    turns end, the breeding area, digivolution + drawing, attacking/blocking/security checks,
    battles (DP comparison), and the effect-timing labels (`[On Play]`, `[When Digivolving]`,
    `[When Attacking]`, `[Security]`, `[Main]`, etc.).
-5. Initialize the game state for each player: shuffle conceptually, draw 5 (allow one
+6. Initialize the game state for each player: shuffle conceptually, draw 5 (allow one
    mulligan if the opening is unplayable), set 5 security cards, memory = 0. First player
    skips the turn-1 draw.
-6. Play the game turn by turn. For each turn, walk the phases in order (Unsuspend → Draw →
+7. Play the game turn by turn. For each turn, walk the phases in order (Unsuspend → Draw →
    Breeding → Main) and, in the main phase, make reasonable, deck-appropriate decisions:
    develop the breeding line, digivolve up the curve, play Tamers/Options when useful, attack
    when profitable, and manage the memory gauge (remember passing/ending a turn hands memory
    to the opponent).
-7. Emit a **play-by-play entry for every meaningful action** using the format in
+8. Emit a **play-by-play entry for every meaningful action** using the format in
    Specifications. Resolve each card's actual effect text and security-check outcomes, and
    keep a running board state (each player's field with current DP + digivolution depth,
    hand size, security count, and memory).
-8. Continue until a win condition is met (opponent security hit at 0, or deck-out) or the turn
+9. Continue until a win condition is met (opponent security hit at 0, or deck-out) or the turn
    cap is reached; if the cap is reached, stop and summarize the board position and who is
    ahead.
-9. Deliver the full play-by-play log plus a short summary (winner/leader, key turning points,
+10. Deliver the full play-by-play log plus a short summary (winner/leader, key turning points,
    and any deck observations such as an awkward curve or missing engine pieces).
 
 ## Specifications
