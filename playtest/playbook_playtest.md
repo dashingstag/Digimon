@@ -45,7 +45,12 @@ repo, plays out the game making reasonable decisions for each side, and reports 
 7. Emit a **play-by-play entry for every meaningful action** using the format in
    Specifications. Resolve each card's actual effect text and security-check outcomes, and
    keep a running board state (each player's field with current DP + digivolution depth,
-   hand size, security count, and memory).
+   security count, and memory).
+   - **Every turn, list the exact card names in hand** — once right after the draw step and
+     again at end of turn (not just a count). Update the listed hand after each play, draw,
+     trash, or reveal so the reader can always see what the player is holding.
+   - Track hand contents as real cards drawn from the decklist; do not let the same copy appear
+     more places than its quantity in the deck allows.
 8. Continue until a win condition is met (opponent security hit at 0, or deck-out) or the turn
    cap is reached; if the cap is reached, stop and summarize the board position and who is
    ahead.
@@ -57,25 +62,28 @@ repo, plays out the game making reasonable decisions for each side, and reports 
   ```
   ## Turn N — <Player> (memory start: <M>)
   - Unsuspend: ...
-  - Draw: drew <card> (hand: <n>)
+  - Draw: drew <card>
+  - Hand (<n>): <card>, <card>, <card>, ...        # exact names, listed every turn
   - Breeding: hatched <egg> / moved <Digimon> to battle area / no action
   - Main:
     - Played <name> (BTx-xxx) for <cost>. Memory <before> -> <after>. [On Play]: <what happened>
     - Digivolved <base> into <name> (BTx-xxx) for <cost>, drew a card. Now <DP> DP. Inherited: <...>
     - <name> attacks <target>. Block? <y/n>. Security check: flipped <card> -> <result>.
     - ...
+  - Hand (<n>): <card>, <card>, ...               # exact names again at end of turn
   - End of turn. Memory: <M on opponent side>. Board: A[...] vs B[...]. Security A:n B:n.
   ```
 - Every card referenced must use its **real** stats/effects from `deck_lookup.py` output.
 - Security checks must flip a concrete security card and resolve its `[Security]` / battle
   outcome; Security Digimon are not deleted when they lose.
-- The log must be internally consistent: memory, DP, security counts, and hand sizes track
-  correctly turn to turn.
+- The log must be internally consistent: memory, DP, security counts, and hand **contents**
+  (named cards, not just sizes) track correctly turn to turn.
 - End with a **Result** section naming the winner (or leader at the cap) and 2–4 bullet
   takeaways about the deck's performance.
 - **Validation:** re-read the log and confirm no card has invented stats, memory never exceeds
-  10 either way, no Digimon attacks the turn it was played (unless it has `<Rush>`), and every
-  attack on the player performs a security check while security > 0.
+  10 either way, no Digimon attacks the turn it was played (unless it has `<Rush>`), every
+  attack on the player performs a security check while security > 0, and **every turn shows the
+  named cards in hand** (after draw and at end of turn) consistent with prior plays/draws.
 
 ## Advice and Pointers
 - The card dictionary is authoritative for stats; the rules file is authoritative for
