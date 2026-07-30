@@ -100,7 +100,9 @@ repo, plays out the game making reasonable decisions for each side, and reports 
   side). A turn ends when, with nothing pending, memory sits on the opponent's side.
 
 ## Forbidden Actions
-- Do not invent card names, stats, or effects; only use data returned by `deck_lookup.py`.
-- Do not modify `digimon_cards_dict.json` or the card images.
+- Do not invent card names, stats, or effects; only use data returned by `deck_lookup.py` (or
+  fetched into the dictionary by `app/update_cards.py`).
+- Do not hand-edit `digimon_cards_dict.json` or touch the card images. The only allowed change
+  to the dictionary is via `app/update_cards.py` to fetch cards flagged missing/sparse.
 - Do not skip security checks or let a freshly played Digimon attack the same turn (absent
   `<Rush>`).
