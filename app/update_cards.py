@@ -86,6 +86,22 @@ def pick_variant(card_number: str, variants: list) -> dict | None:
     return card
 
 
+def write_dict(cards: dict, fh) -> None:
+    """Write the dictionary with one card per line.
+
+    Each record is serialized compactly so the file stays small (the browser app
+    downloads and parses the whole thing), while keeping one line per card so
+    git diffs remain readable and per-card.
+    """
+    fh.write("{\n")
+    last = len(cards) - 1
+    for i, (number, card) in enumerate(cards.items()):
+        key = json.dumps(number, ensure_ascii=False)
+        value = json.dumps(card, ensure_ascii=False, separators=(",", ":"))
+        fh.write(f"{key}:{value}" + ("," if i < last else "") + "\n")
+    fh.write("}\n")
+
+
 def main(argv):
     if not argv:
         print("Provide one or more card numbers, e.g. BT25-084 LM-032")
@@ -122,7 +138,7 @@ def main(argv):
             time.sleep(1)
 
     with open(DICT_PATH, "w", encoding="utf-8") as fh:
-        json.dump(cards, fh, ensure_ascii=False, indent=2)
+        write_dict(cards, fh)
 
     print(f"\nUpdated {len(updated)}; skipped {len(skipped)}: {skipped}")
     return 0
