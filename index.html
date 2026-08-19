@@ -88,7 +88,7 @@
       transition: box-shadow 0.15s, transform 0.15s;
     }
     .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
-    .card img { width: 100%; height: auto; display: block; }
+    .card img { width: 100%; display: block; aspect-ratio: 5 / 7; object-fit: contain; }
     .placeholder {
       min-height: 180px;
       background: #e2e8f0;
@@ -572,6 +572,19 @@
       return IMAGE_DIR + cardNumber + '.jpg';
     }
 
+    // Card scans average ~100KB, so eagerly loading a full grid of them cost
+    // several MB before the page was usable. Defer off-screen images; the CSS
+    // aspect-ratio reserves their space so the browser can tell what's visible.
+    function createCardImage(card, onMissing) {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.src = getImageSrc(card.cardnumber);
+      img.alt = card.name || card.cardnumber;
+      img.onerror = () => { img.style.display = 'none'; onMissing(); };
+      return img;
+    }
+
     function createPlaceholder() {
       const p = document.createElement('div');
       p.className = 'placeholder';
@@ -596,16 +609,6 @@
 
       for (const [cardNumber, card] of Object.entries(raw)) {
         card.cardnumber = cardNumber;
-        const parts = [];
-        for (const [key, value] of Object.entries(card)) {
-          if (value == null || SEARCH_EXCLUDED_FIELDS.has(key)) continue;
-          if (Array.isArray(value)) parts.push(...value.filter(x => x != null).map(String));
-          else parts.push(String(value));
-        }
-        card._search = parts.join(' ').toLowerCase();
-        card._kweffect = stripReminders(
-          [card.main_effect, card.source_effect, card.alt_effect].filter(Boolean).join(' ')
-        ).toLowerCase();
         allCards.push(card);
         cardsById[cardNumber] = card;
         if (card.color) colors.add(card.color);
@@ -621,6 +624,32 @@
       fillSelect($('rarityFilter'), [...rarities].sort());
     }
 
+    // Search indexes are built on first use and memoized: computing them for
+    // every card up front dominated startup for no benefit, since they're only
+    // needed once a query or keyword filter is actually applied. Keys starting
+    // with '_' are the memoized indexes themselves and never indexed.
+    function searchText(card) {
+      if (card._search === undefined) {
+        const parts = [];
+        for (const [key, value] of Object.entries(card)) {
+          if (value == null || key.startsWith('_') || SEARCH_EXCLUDED_FIELDS.has(key)) continue;
+          if (Array.isArray(value)) parts.push(...value.filter(x => x != null).map(String));
+          else parts.push(String(value));
+        }
+        card._search = parts.join(' ').toLowerCase();
+      }
+      return card._search;
+    }
+
+    function keywordText(card) {
+      if (card._kweffect === undefined) {
+        card._kweffect = stripReminders(
+          [card.main_effect, card.source_effect, card.alt_effect].filter(Boolean).join(' ')
+        ).toLowerCase();
+      }
+      return card._kweffect;
+    }
+
     function cardMatches(card) {
       const color = $('colorFilter').value;
       const type = $('typeFilter').value;
@@ -633,11 +662,12 @@
       if (level && String(card.level) !== level) return false;
       if (rarity && card.rarity !== rarity) return false;
 
-      if (activeKeyword) return card._kweffect.includes(activeKeyword);
+      if (activeKeyword) return keywordText(card).includes(activeKeyword);
 
       const terms = query.split(/\s+/).filter(t => t);
       if (!terms.length) return true;
-      return terms.every(t => card._search.includes(t));
+      const text = searchText(card);
+      return terms.every(t => text.includes(t));
     }
 
     function sortCards(cards) {
@@ -681,10 +711,7 @@
       div.className = 'card';
       div.addEventListener('click', e => { if (!e.target.closest('.bookmark-btn')) openModal(card); });
 
-      const img = document.createElement('img');
-      img.src = getImageSrc(card.cardnumber);
-      img.alt = card.name || card.cardnumber;
-      img.onerror = () => { img.style.display = 'none'; div.insertBefore(createPlaceholder(), div.firstChild); };
+      const img = createCardImage(card, () => div.insertBefore(createPlaceholder(), div.firstChild));
 
       const body = document.createElement('div');
       body.className = 'body';
@@ -722,10 +749,9 @@
       detail.className = 'detail';
 
       const left = document.createElement('div');
-      const img = document.createElement('img');
-      img.src = getImageSrc(card.cardnumber);
-      img.alt = card.name || card.cardnumber;
-      img.onerror = () => { img.style.display = 'none'; left.appendChild(createPlaceholder()); };
+      // The modal shows one card the user explicitly opened, so load it now.
+      const img = createCardImage(card, () => left.appendChild(createPlaceholder()));
+      img.loading = 'eager';
       left.appendChild(img);
 
       const right = document.createElement('div');
@@ -794,10 +820,7 @@
         div.className = 'card';
         div.addEventListener('click', e => { if (!e.target.closest('.remove-btn')) openModal(card); });
 
-        const img = document.createElement('img');
-        img.src = getImageSrc(card.cardnumber);
-        img.alt = card.name || card.cardnumber;
-        img.onerror = () => { img.style.display = 'none'; div.insertBefore(createPlaceholder(), div.firstChild); };
+        const img = createCardImage(card, () => div.insertBefore(createPlaceholder(), div.firstChild));
 
         const body = document.createElement('div');
         body.className = 'body';
@@ -957,10 +980,7 @@
       div.className = 'card';
       div.addEventListener('click', () => openModal(card));
 
-      const img = document.createElement('img');
-      img.src = getImageSrc(card.cardnumber);
-      img.alt = card.name || card.cardnumber;
-      img.onerror = () => { img.style.display = 'none'; div.insertBefore(createPlaceholder(), div.firstChild); };
+      const img = createCardImage(card, () => div.insertBefore(createPlaceholder(), div.firstChild));
 
       const body = document.createElement('div');
       body.className = 'body';
