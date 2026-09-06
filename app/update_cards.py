@@ -12,6 +12,10 @@ can never be written into the dictionary.
 
 Usage:
     python3 app/update_cards.py BT25-084 LM-032 BT6-081 ...
+    python3 app/update_cards.py --set BT26 --set EX8     # whole sets, one API call each
+
+In --set mode only cards that are missing or sparse (type missing/"Unknown")
+are written; complete existing records are left untouched.
 """
 import json
 import os
@@ -42,6 +46,7 @@ ALLOWED_FIELDS = frozenset({
 PROVENANCE_FIELDS = ("id", "name", "type", "pretty_url", "series")
 
 CARD_NUMBER_RE = re.compile(r"^[A-Za-z]{1,4}\d{0,2}-\d{2,3}[A-Za-z]?$")
+SET_PREFIX_RE = re.compile(r"^[A-Za-z]{1,4}\d{0,2}$")
 
 
 def fetch_card(card_number: str) -> list:
@@ -102,16 +107,62 @@ def write_dict(cards: dict, fh) -> None:
     fh.write("}\n")
 
 
+def is_sparse(card) -> bool:
+    return not isinstance(card, dict) or card.get("type") in (None, "", "Unknown")
+
+
+def update_set(cards: dict, prefix: str) -> tuple[list, list]:
+    """Fill every missing/sparse card of a set from a single bulk API query."""
+    variants = fetch_card(prefix + "-")
+    by_id = {}
+    for v in variants:
+        if isinstance(v, dict) and str(v.get("id", "")).upper().startswith(prefix.upper() + "-"):
+            by_id.setdefault(str(v["id"]), []).append(v)
+    updated, skipped = [], []
+    for number in sorted(by_id):
+        if not CARD_NUMBER_RE.match(number) or not is_sparse(cards.get(number)):
+            continue
+        card = pick_variant(number, by_id[number])
+        if not card:
+            skipped.append(number)
+            continue
+        cards[number] = card
+        updated.append(number)
+    print(f"  {prefix}: {len(by_id)} cards in API, {len(updated)} written, "
+          f"{len(skipped)} rejected by guard")
+    return updated, skipped
+
+
 def main(argv):
     if not argv:
-        print("Provide one or more card numbers, e.g. BT25-084 LM-032")
+        print("Provide card numbers (e.g. BT25-084 LM-032) or --set PREFIX (e.g. --set BT26)")
         return 1
 
     with open(DICT_PATH, "r", encoding="utf-8") as fh:
         cards = json.load(fh)
 
-    updated, skipped = [], []
-    for i, number in enumerate(argv):
+    updated, skipped, numbers = [], [], []
+    args = iter(argv)
+    for a in args:
+        if a == "--set":
+            prefix = next(args, "")
+            if not SET_PREFIX_RE.match(prefix):
+                print(f"  ! --set {prefix!r}: not a valid set prefix, skipping")
+                skipped.append(prefix)
+                continue
+            try:
+                u, s = update_set(cards, prefix)
+            except Exception as e:
+                print(f"  ! {prefix}: fetch failed ({e})")
+                skipped.append(prefix)
+                continue
+            updated += u
+            skipped += s
+            time.sleep(1.5)
+        else:
+            numbers.append(a)
+
+    for i, number in enumerate(numbers):
         if not CARD_NUMBER_RE.match(number):
             print(f"  ! {number}: not a valid card number, skipping")
             skipped.append(number)
